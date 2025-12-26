@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket Transfer Service - Test Client</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .card h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.5em;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+
+    .status.connected {
+      background: #10b981;
+      color: white;
+    }
+
+    .status.disconnected {
+      background: #ef4444;
+      color: white;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    textarea {
+      min-height: 100px;
+      font-family: monospace;
+      resize: vertical;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .messages {
+      max-height: 400px;
+      overflow-y: auto;
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 15px;
+    }
+
+    .message {
+      background: white;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .message-time {
+      color: #9ca3af;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .message-content {
+      font-family: monospace;
+      font-size: 13px;
+      background: #f3f4f6;
+      padding: 8px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .info {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔌 Socket Transfer Service</h1>
+
+    <!-- Connection Status -->
+    <div class="card">
+      <h2>Connection</h2>
+      <div id="status" class="status disconnected">Disconnected</div>
+      <div class="info">
+        <strong>Server:</strong> <code id="serverUrl">ws://localhost:3000</code>
+      </div>
+    </div>
+
+    <!-- Listen Configuration -->
+    <div class="card">
+      <h2>Listen for Messages</h2>
+      <div class="info">
+        Enter your userId to listen for incoming messages. You will receive all messages sent to this userId.
+      </div>
+      <div class="form-group">
+        <label for="myUserId">My User ID</label>
+        <input type="text" id="myUserId" placeholder="e.g., user_123" value="user_123">
+      </div>
+      <button onclick="startListening()">Start Listening</button>
+    </div>
+
+    <!-- Send Message -->
+    <div class="card">
+      <h2>Send Message</h2>
+      <div class="info">
+        Send a message to a specific userId. Only clients listening to that userId will receive it.
+      </div>
+      <div class="form-group">
+        <label for="recipientUserId">Recipient User ID</label>
+        <input type="text" id="recipientUserId" placeholder="e.g., user_456" value="user_456">
+      </div>
+      <div class="form-group">
+        <label for="eventName">Event Name</label>
+        <input type="text" id="eventName" placeholder="e.g., IceCandidate" value="IceCandidate">
+      </div>
+      <div class="form-group">
+        <label for="payload">Payload (JSON)</label>
+        <textarea id="payload" placeholder='{"key": "value"}'>{"type": "offer", "sdp": "..."}</textarea>
+      </div>
+      <button onclick="sendMessage()">Send Message</button>
+    </div>
+
+    <!-- Received Messages -->
+    <div class="card">
+      <h2>Received Messages</h2>
+      <div class="messages" id="messages">
+        <div style="text-align: center; color: #9ca3af; padding: 20px;">
+          No messages yet. Start listening to receive messages.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let socket = null;
+    let currentUserId = null;
+
+    // Connect to server
+    function connectSocket() {
+      socket = io('http://localhost:3000');
+
+      socket.on('connect', () => {
+        console.log('Connected to server');
+        updateStatus(true);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        updateStatus(false);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        updateStatus(false);
+      });
+    }
+
+    // Update connection status
+    function updateStatus(connected) {
+      const statusEl = document.getElementById('status');
+      if (connected) {
+        statusEl.textContent = 'Connected';
+        statusEl.className = 'status connected';
+      } else {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = 'status disconnected';
+      }
+    }
+
+    // Start listening for messages
+    function startListening() {
+      const userId = document.getElementById('myUserId').value.trim();
+      
+      if (!userId) {
+        alert('Please enter your User ID');
+        return;
+      }
+
+      // Remove previous listener if exists
+      if (currentUserId) {
+        socket.off(currentUserId);
+      }
+
+      currentUserId = userId;
+
+      // Listen to events with name = userId
+      socket.on(userId, (message) => {
+        console.log('Received message:', message);
+        displayMessage(message);
+      });
+
+      addSystemMessage(`Now listening for messages to: ${userId}`);
+    }
+
+    // Send message to recipient
+    function sendMessage() {
+      const recipientUserId = document.getElementById('recipientUserId').value.trim();
+      const eventName = document.getElementById('eventName').value.trim();
+      const payloadText = document.getElementById('payload').value.trim();
+
+      if (!recipientUserId || !eventName || !payloadText) {
+        alert('Please fill all fields');
+        return;
+      }
+
+      let payload;
+      try {
+        payload = JSON.parse(payloadText);
+      } catch (e) {
+        alert('Invalid JSON in payload');
+        return;
+      }
+
+      const message = {
+        event: eventName,
+        payload: payload,
+        timestamp: Date.now()
+      };
+
+      // Emit event with name = recipientUserId
+      socket.emit(recipientUserId, message);
+      
+      addSystemMessage(`Sent message to: ${recipientUserId}`);
+      console.log('Sent message:', message);
+    }
+
+    // Display received message
+    function displayMessage(message) {
+      const messagesEl = document.getElementById('messages');
+      
+      // Clear placeholder
+      if (messagesEl.children.length === 1 && messagesEl.children[0].style.textAlign === 'center') {
+        messagesEl.innerHTML = '';
+      }
+
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message';
+      
+      const time = new Date(message.timestamp).toLocaleTimeString();
+      
+      messageEl.innerHTML = `
+        <div class="message-time">${time} - Event: ${message.event}</div>
+        <div class="message-content">${JSON.stringify(message.payload, null, 2)}</div>
+      `;
+      
+      messagesEl.insertBefore(messageEl, messagesEl.firstChild);
+    }
+
+    // Add system message
+    function addSystemMessage(text) {
+      const messagesEl = document.getElementById('messages');
+      
+      // Clear placeholder
+      if (messagesEl.children.length === 1 && messagesEl.children[0].style.textAlign === 'center') {
+        messagesEl.innerHTML = '';
+      }
+
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message';
+      messageEl.style.borderLeftColor = '#10b981';
+      
+      const time = new Date().toLocaleTimeString();
+      
+      messageEl.innerHTML = `
+        <div class="message-time">${time} - System</div>
+        <div class="message-content">${text}</div>
+      `;
+      
+      messagesEl.insertBefore(messageEl, messagesEl.firstChild);
+    }
+
+    // Initialize on page load
+    connectSocket();
+  </script>
+</body>
+</html>
