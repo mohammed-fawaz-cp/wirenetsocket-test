@@ -94,7 +94,67 @@ socket.on('user_123', (data) {
 
 ---
 
-## 📤 Sending Messages
+## � Security Notice (Test Server)
+
+> [!WARNING]
+> **No Authentication - Test Server Only**
+> 
+> This server does **NOT** authenticate or verify userIds. This means:
+> 
+> - ❌ **No userId registration** - Anyone can use any userId
+> - ❌ **No verification** - Server doesn't check if you "own" a userId
+> - ❌ **No authorization** - Anyone can listen to any userId
+> - ❌ **No sender validation** - Anyone can send messages as any userId
+> 
+> **What this means for your app:**
+> 
+> ```dart
+> // Anyone can do this:
+> socket.on('user_123', (data) {
+>   // I will receive ALL messages to user_123
+>   // Even if I'm not actually user_123!
+> });
+> 
+> // Anyone can do this:
+> socket.emit('user_456', message);
+> // Server forwards it - no questions asked
+> ```
+> 
+> **Multiple listeners allowed:**
+> - Multiple clients can listen to the same userId
+> - All will receive the same messages
+> - No conflict, no error
+> 
+> **For production:** Add JWT authentication, userId verification, and access control.
+> 
+> **For testing:** This is fine! Simple, predictable, easy to debug.
+
+### How to Choose a userId
+
+Since there's no registration, you need to manage userIds in your app:
+
+```dart
+// Option 1: Use your existing user ID from your auth system
+final userId = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+signaling.connect(userId);
+
+// Option 2: Generate unique ID
+final userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+signaling.connect(userId);
+
+// Option 3: Use phone number or email hash
+final userId = 'user_${phoneNumber.hashCode}';
+signaling.connect(userId);
+```
+
+**Best Practice:**
+- Use your existing authentication system's user IDs
+- Ensure userIds are unique across your app
+- Don't hardcode userIds - generate them dynamically
+
+---
+
+## �📤 Sending Messages
 
 ### Message Format (Mandatory)
 
